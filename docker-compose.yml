@@ -1,0 +1,48 @@
+version: "2.1"
+services:
+  jobmanager:
+    image: flink:1.5.0-scala_2.11
+    container_name: jobs
+    expose:
+      - "6123"
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+    labels:
+      com.pccwg.flink-node-type-jobs: "true"
+
+  taskmanager:
+    image: flink:1.5.0-scala_2.11
+    container_name: tasks
+    expose:
+      - "6121"
+      - "6122"
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    links:
+      - "jobmanager:jobmanager"
+    environment:
+      - JOB_MANAGER_RPC_ADDRESS=jobmanager
+    labels:
+      com.pccwg.flink-node-type-tasks: "true"
+
+  box:
+    build:
+      context:     .
+    command:       tail -F /workspace/out/foo/assembly/log
+    volumes:
+        - /workspace/out
+
+  job:
+    build:
+      context:     .
+    container_name: thejob
+    command:       bash -c "cp -R /input/* /workspace/ && cd /workspace && mill -i foo.assembly"
+    volumes_from:
+      - box
+    volumes:
+      - .:/input:ro
+
